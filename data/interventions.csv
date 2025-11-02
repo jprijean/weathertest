@@ -1,0 +1,6 @@
+id,title,description
+no-alert,No Alert Required,No weather alert conditions detected. All values within normal range.
+high_wind_alert,Vent Fort Détecté,Des vents forts ont été détectés. Veuillez sécuriser les objets extérieurs et rester à l'intérieur.
+heavy_rain_alert,Alerte Pluie Abondante,Des précipitations importantes sont attendues. Veuillez prendre les précautions nécessaires.
+storm_alert,Alerte Tempête,Conditions de tempête détectées. Vent fort et précipitations importantes. Restez à l'intérieur et évitez les déplacements.
+coastal_warning,Avertissement Côtier,Conditions météorologiques dangereuses pour les zones côtières. Vent fort et vagues importantes attendues.
