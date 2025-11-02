@@ -4,9 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Database configuration
-DATABASE_PATH = os.getenv("DATABASE_PATH", "weather_alerts.db")
-
 # OpenWeatherMap API configuration
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 WEATHER_UNITS = os.getenv("WEATHER_UNITS", "metric")  # metric, imperial, or kelvin

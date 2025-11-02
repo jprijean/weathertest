@@ -1,5 +1,5 @@
 building_code,alert_type,value,operator,intervention_id
-BREST001,Windspeed,0,>,high_wind_alert
+BREST001,Windspeed,10.0,>,high_wind_alert
 BREST001,Precipitation,15.0,>,heavy_rain_alert
 BREST001,Windspeed,25.0,>,storm_alert
 BREST002,Windspeed,18.0,>,high_wind_alert

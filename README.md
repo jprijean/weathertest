@@ -9,9 +9,9 @@ A Python-based weather monitoring and alerting system that tracks weather condit
 - **Automatic monitoring**: Runs weather checks every 3 hours
 - **Email notifications**: Sends alerts via email at 9am when conditions are met
 - **OpenWeatherMap integration**: Uses OpenWeatherMap API for accurate weather data
-- **SQLite database**: Stores all locations, alerts, and results locally
+- **CSV storage**: Stores all locations, alerts, and results in CSV files
 
-## Database Schema
+## Data Storage Schema
 
 ### Location DB
 - Building Code (ID)
@@ -191,7 +191,7 @@ db.add_weather_alert(alert)
 - The system runs continuously until stopped (Ctrl+C)
 - Weather data is fetched for 3-day forecasts (24 data points, 3-hour intervals)
 - Alerts are only sent between 6am and 11am, even if conditions are met at other times
-- The database file (`weather_alerts.db`) will be created automatically
+- CSV files in the `data/` directory will be created automatically
 - All times are in local server time
 - Supports both Resend API and traditional SMTP for email sending
 
@@ -200,7 +200,7 @@ db.add_weather_alert(alert)
 - **API errors**: Verify your OpenWeatherMap API key is correct and active
 - **Email not sending**: Check SMTP settings and credentials
 - **No locations found**: Run `setup_database.py` or add locations manually
-- **Database errors**: Ensure you have write permissions in the directory
+- **CSV file errors**: Ensure you have write permissions in the `data/` directory
 
 ## License
 
