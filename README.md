@@ -85,6 +85,10 @@ ALERT_HOUR=9
 ALERT_START_HOUR=6
 ALERT_END_HOUR=11
 WEATHER_CHECK_INTERVAL_HOURS=3
+
+# Optional - API Server configuration (for api_server.py)
+API_HOST=127.0.0.1
+API_PORT=8000
 ```
 
 ### Email Setup Notes

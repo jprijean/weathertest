@@ -41,7 +41,7 @@ class ComparisonEngine:
             return False
     
     def compare_weather_data(self, building_code: str, weather_data: List[Dict]) -> List[WeatherResult]:
-        """Compare weather alerts against weather data for a location.
+        """Compare global weather alerts against weather data for a location.
         
         Args:
             building_code: Building code for the location
@@ -50,7 +50,8 @@ class ComparisonEngine:
         Returns:
             List of WeatherResult objects indicating which alerts were triggered
         """
-        alerts = self.db.get_weather_alerts_for_location(building_code)
+        # Get global alerts (applies to all buildings)
+        alerts = self.db.get_weather_alerts()
         results = []
         
         if not alerts:

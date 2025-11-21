@@ -19,8 +19,6 @@ SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
 # Alert timing
-ALERT_HOUR = int(os.getenv("ALERT_HOUR", "9"))  # Hour of day to send alerts (24-hour format)
-ALERT_START_HOUR = int(os.getenv("ALERT_START_HOUR", "6"))  # Start of alert sending window
-ALERT_END_HOUR = int(os.getenv("ALERT_END_HOUR", "11"))  # End of alert sending window
+ALERT_HOUR = int(os.getenv("ALERT_HOUR", "8"))  # Hour of day to send daily status emails (24-hour format, default 8:00 AM)
 WEATHER_CHECK_INTERVAL_HOURS = int(os.getenv("WEATHER_CHECK_INTERVAL_HOURS", "3"))
 

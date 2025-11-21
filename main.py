@@ -5,10 +5,13 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
+from typing import Dict, List, Optional
 from models import Database
 from weather_api import WeatherAPI
 from comparison_engine import ComparisonEngine
 from email_service import EmailService
+from status_calculator import calculate_site_status, determine_alert_type
+from datetime import datetime, timedelta
 
 
 class WeatherAlertSystem:
@@ -73,6 +76,9 @@ class WeatherAlertSystem:
         for location in locations:
             print(f"Processing location: {location.building_code}")
             
+            # Get previous status BEFORE saving new results
+            previous_status = calculate_site_status(self.db, location.building_code)
+            
             # Fetch weather data
             weather_data = self.weather_api.get_weather_for_location(
                 location.latitude, 
@@ -96,42 +102,129 @@ class WeatherAlertSystem:
                 self.db.save_result(result)
             
             print(f"  Saved {len(results)} results to database")
+            
+            # Check for status change from green to non-green
+            if previous_status == 'green':
+                # Calculate new status after saving results
+                new_status = calculate_site_status(self.db, location.building_code)
+                
+                # If status changed from green to non-green, send alert
+                if new_status != 'green' and new_status != previous_status:
+                    print(f"  Status changed from {previous_status} to {new_status} - sending alert emails")
+                    self.send_status_change_alerts(location, new_status)
         
         print(f"[{datetime.now()}] Weather check completed")
     
-    def send_scheduled_alerts(self):
-        """Send email alerts if within the alert time window and there are active alerts."""
-        from config import ALERT_START_HOUR, ALERT_END_HOUR
+    def send_status_change_alerts(self, location, new_status: str):
+        """
+        Send immediate alert emails when status changes from green to non-green.
+        
+        Args:
+            location: Location object
+            new_status: New status ('red', 'yellow', or 'purple')
+        """
+        if not self.email_service:
+            print("  Email service not configured. Skipping status change alerts.")
+            return
+        
+        # Get latest result to determine alert type
+        latest_result = self.db.get_latest_result(location.building_code)
+        if not latest_result:
+            print(f"  No latest result found for {location.building_code}")
+            return
+        
+        # Determine which alert type triggered the status change
+        alert_type = determine_alert_type(self.db, location.building_code, latest_result)
+        
+        # Get owner emails
+        owner_emails = location.owner_emails
+        if not owner_emails:
+            print(f"  No owner emails found for {location.building_code}")
+            return
+        
+        # Send alert email to each owner
+        sent_count = 0
+        for email in owner_emails:
+            email = email.strip()
+            if email:
+                if self.email_service.send_status_change_alert(
+                    email, 
+                    location.building_code, 
+                    new_status, 
+                    alert_type
+                ):
+                    sent_count += 1
+                    print(f"    ✓ Alert email sent to {email}")
+                else:
+                    print(f"    ✗ Failed to send alert email to {email}")
+        
+        print(f"  Sent {sent_count} status change alert email(s) for {location.building_code}")
+    
+    def send_daily_status_emails(self):
+        """
+        Send daily status emails at 8:00 AM.
+        One email per owner with all their sites' statuses.
+        """
+        from config import ALERT_HOUR
         current_hour = datetime.now().hour
         
-        if not (ALERT_START_HOUR <= current_hour < ALERT_END_HOUR):
-            print(f"Current time is {datetime.now().strftime('%H:%M')}, not within alert window ({ALERT_START_HOUR}:00-{ALERT_END_HOUR}:00). Skipping alerts.")
+        if current_hour != ALERT_HOUR:
+            print(f"Current time is {datetime.now().strftime('%H:%M')}, not {ALERT_HOUR}:00. Skipping daily emails.")
             return
         
         if not self.email_service:
-            print("Email service not configured. Skipping alerts.")
+            print("Email service not configured. Skipping daily emails.")
             return
         
-        print(f"\n[{datetime.now()}] Starting scheduled alert check...")
+        print(f"\n[{datetime.now()}] Starting daily status email check...")
         
         # Get all locations
         locations = self.db.get_all_locations()
         
-        for location in locations:
-            # Get the most recent result for this location
-            result = self.db.get_latest_result(location.building_code)
-            
-            if result and result['intervention_id'] != 'no-alert':
-                intervention_id = result['intervention_id']
-                print(f"Sending alerts for {location.building_code} (Intervention: {intervention_id})")
-                sent = self.email_service.send_alerts_for_location(
-                    self.db, 
-                    location.building_code, 
-                    intervention_id
-                )
-                print(f"  Sent {sent} email(s)")
+        if not locations:
+            print("No locations found. Skipping daily emails.")
+            return
         
-        print(f"[{datetime.now()}] Scheduled alert check completed")
+        # Group sites by owner email
+        # Dictionary: email -> list of sites
+        email_to_sites: Dict[str, List[Dict]] = {}
+        
+        for location in locations:
+            # Calculate status for this site
+            status = calculate_site_status(self.db, location.building_code)
+            
+            # Get latest result for current data
+            latest_result = self.db.get_latest_result(location.building_code)
+            
+            site_data = {
+                'building_code': location.building_code,
+                'status': status,
+                'windspeed': latest_result.get('windspeed_val', 0) if latest_result else 0,
+                'precipitation': latest_result.get('precipitation_val', 0) if latest_result else 0,
+                'timestamp': latest_result.get('timestamp', '') if latest_result else ''
+            }
+            
+            # Add this site to each owner's email list
+            owner_emails = location.owner_emails
+            for email in owner_emails:
+                email = email.strip()
+                if email:
+                    if email not in email_to_sites:
+                        email_to_sites[email] = []
+                    email_to_sites[email].append(site_data)
+        
+        # Send one email per owner
+        total_sent = 0
+        for recipient_email, sites in email_to_sites.items():
+            if sites:  # Only send if owner has at least one site
+                print(f"Sending daily status email to {recipient_email} ({len(sites)} site(s))")
+                if self.email_service.send_daily_status_email(recipient_email, sites):
+                    total_sent += 1
+                    print(f"  ✓ Email sent successfully")
+                else:
+                    print(f"  ✗ Failed to send email")
+        
+        print(f"[{datetime.now()}] Daily status email check completed. Sent {total_sent} email(s).")
     
     def run(self):
         """Run the weather alert system with scheduled tasks."""
@@ -141,12 +234,13 @@ class WeatherAlertSystem:
         # Schedule weather check every 3 hours
         schedule.every(3).hours.do(self.process_weather_check)
         
-        # Schedule alert sending check every hour (will only send at 9am)
-        schedule.every().hour.do(self.send_scheduled_alerts)
+        # Schedule daily status emails at 8:00 AM
+        from config import ALERT_HOUR
+        schedule.every().day.at(f"{ALERT_HOUR:02d}:00").do(self.send_daily_status_emails)
         
         # Run immediately on startup
         self.process_weather_check()
-        self.send_scheduled_alerts()
+        # Don't send emails on startup, only at scheduled time
         
         # Main loop
         print("\nSystem running. Press Ctrl+C to stop.")

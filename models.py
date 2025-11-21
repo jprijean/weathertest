@@ -17,8 +17,7 @@ class Location:
 
 @dataclass
 class WeatherAlert:
-    """Represents a weather alert rule."""
-    building_code: str
+    """Represents a global weather alert rule (applies to all buildings)."""
     alert_type: str  # 'Windspeed' or 'Precipitation'
     value: float
     operator: str  # '>', '<', '>=', '<=', '=='
@@ -116,19 +115,18 @@ class Database:
         return locations
     
     def add_weather_alert(self, alert: WeatherAlert):
-        """Add a weather alert rule to the CSV file."""
+        """Add a global weather alert rule to the CSV file."""
         with open(self.weather_alerts_file, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=["building_code", "alert_type", "value", "operator", "intervention_id"])
+            writer = csv.DictWriter(f, fieldnames=["alert_type", "value", "operator", "intervention_id"])
             writer.writerow({
-                "building_code": alert.building_code,
                 "alert_type": alert.alert_type,
                 "value": alert.value,
                 "operator": alert.operator,
                 "intervention_id": alert.intervention_id
             })
     
-    def get_weather_alerts_for_location(self, building_code: str) -> List[WeatherAlert]:
-        """Get all weather alerts for a specific location."""
+    def get_weather_alerts(self) -> List[WeatherAlert]:
+        """Get all global weather alerts (applies to all buildings)."""
         alerts = []
         if not os.path.exists(self.weather_alerts_file):
             return alerts
@@ -136,14 +134,18 @@ class Database:
         with open(self.weather_alerts_file, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                if row.get('building_code') == building_code:
-                    alerts.append(WeatherAlert(
-                        building_code=row['building_code'],
-                        alert_type=row['alert_type'],
-                        value=float(row['value']),
-                        operator=row['operator'],
-                        intervention_id=row['intervention_id']
-                    ))
+                # Handle both old format (with building_code) and new format (without)
+                # If building_code exists in CSV but is empty or missing, skip it (old format)
+                # New format doesn't have building_code column at all
+                if 'building_code' in row and row.get('building_code'):
+                    # Old format - skip this row (building-specific alerts are deprecated)
+                    continue
+                alerts.append(WeatherAlert(
+                    alert_type=row['alert_type'],
+                    value=float(row['value']),
+                    operator=row['operator'],
+                    intervention_id=row['intervention_id']
+                ))
         return alerts
     
     def add_intervention(self, intervention: Intervention):
